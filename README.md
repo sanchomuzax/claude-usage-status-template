@@ -99,6 +99,15 @@ Code is mirrored to a shareable template repo with dummy data by
 code or doc file changes -- the cron job's constant `status.json` commits do not
 trigger a sync.
 
+Before anything is committed to the public template, `template_guard.py` scans
+the built output and **aborts the sync** if it finds credentials, a username,
+an absolute home path, an email address, real measurements in place of the dummy
+data, or any file not on its allowlist. Run its test suite with:
+
+```sh
+python3 test_template_guard.py
+```
+
 Git hooks are not versioned, so after cloning, install it once:
 
 ```sh
