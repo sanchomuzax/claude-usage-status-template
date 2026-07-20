@@ -1,0 +1,64 @@
+{
+  "timestamp_utc": "2026-01-01T12:00:00Z",
+  "quota_status": "ok",
+  "session_percent_used": 42,
+  "weekly_percent_used": 30,
+  "max_percent_used": 42,
+  "session_resets_at": "2026-01-01T15:00:00+00:00",
+  "weekly_resets_at": "2026-01-05T12:00:00+00:00",
+  "limits": [
+    {
+      "kind": "session",
+      "group": "session",
+      "percent_used": 42,
+      "percent_remaining": 58,
+      "severity": "normal",
+      "resets_at": "2026-01-01T15:00:00+00:00",
+      "scope": null,
+      "is_active": true
+    },
+    {
+      "kind": "weekly_all",
+      "group": "weekly",
+      "percent_used": 30,
+      "percent_remaining": 70,
+      "severity": "normal",
+      "resets_at": "2026-01-05T12:00:00+00:00",
+      "scope": null,
+      "is_active": false
+    },
+    {
+      "kind": "weekly_scoped",
+      "group": "weekly",
+      "percent_used": 25,
+      "percent_remaining": 75,
+      "severity": "normal",
+      "resets_at": "2026-01-05T12:00:00+00:00",
+      "scope": "ExampleModel",
+      "is_active": false
+    }
+  ],
+  "subscription_type": "example",
+  "extra_usage": {
+    "is_enabled": false,
+    "utilization": 0.0,
+    "currency": "XXX"
+  },
+  "quota_error_detail": "",
+  "probe_status": "ok",
+  "probe_error_detail": "",
+  "probe_was_live": false,
+  "estimated_tokens_7d": 1000000,
+  "usage_breakdown_7d": {
+    "window_days": 7,
+    "sessions_scanned": 10,
+    "messages_counted": 500,
+    "input_tokens": 50000,
+    "output_tokens": 950000,
+    "cache_creation_input_tokens": 5000000,
+    "cache_read_input_tokens": 300000000,
+    "estimated_tokens_7d": 1000000,
+    "estimated_tokens_7d_including_cache": 306000000
+  },
+  "note": "DUMMY DATA - example output shape only. Not a real measurement."
+}

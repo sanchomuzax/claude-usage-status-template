@@ -1,0 +1,4 @@
+{"t": "2026-01-01T09:00:00Z", "quota_status": "ok", "session": 5, "weekly": 20, "max": 20, "tokens_7d": 700000}
+{"t": "2026-01-01T10:00:00Z", "quota_status": "ok", "session": 18, "weekly": 23, "max": 23, "tokens_7d": 800000}
+{"t": "2026-01-01T11:00:00Z", "quota_status": "ok", "session": 31, "weekly": 27, "max": 31, "tokens_7d": 900000}
+{"t": "2026-01-01T12:00:00Z", "quota_status": "ok", "session": 42, "weekly": 30, "max": 42, "tokens_7d": 1000000}
