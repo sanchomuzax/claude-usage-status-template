@@ -92,6 +92,19 @@ estimate is machine-local** — it only sees sessions logged on this host. Sessi
 driven remotely (e.g. from the web UI) still count as local when the agent runs
 here.
 
+## Template repo
+
+Code is mirrored to a shareable template repo with dummy data by
+`sync-template.sh`. A `post-commit` hook runs it automatically, but only when a
+code or doc file changes -- the cron job's constant `status.json` commits do not
+trigger a sync.
+
+Git hooks are not versioned, so after cloning, install it once:
+
+```sh
+cp hooks/post-commit .git/hooks/post-commit && chmod +x .git/hooks/post-commit
+```
+
 ## Privacy
 
 No secrets, account identifiers, name or email are ever written to this repo —
