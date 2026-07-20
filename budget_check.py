@@ -50,6 +50,11 @@ BURN_STOP_FLOOR = 35             # weekly % that must be spent before stopping
 SESSION_WINDOW = timedelta(hours=5)
 WEEKLY_WINDOW = timedelta(days=7)
 
+# When the live call is unavailable (e.g. an agent running on another machine),
+# we fall back to the last published status.json. That reading has a shelf life:
+# reporting an expired number confidently is worse than admitting we cannot see.
+CACHE_MAX_AGE_MINUTES = 90
+
 
 def parse_timestamp(raw):
     if not raw:
@@ -102,9 +107,34 @@ def minutes_until(resets_at):
     return max(0, round((end - datetime.now(timezone.utc)).total_seconds() / 60))
 
 
-def evaluate(limits):
+def cache_age_minutes(limits):
+    """How old a cached reading is, from the timestamp it was written with."""
+    stamp = parse_timestamp(limits.get("timestamp_utc"))
+    if stamp is None:
+        return None
+    return round((datetime.now(timezone.utc) - stamp).total_seconds() / 60)
+
+
+def session_window_expired(limits):
+    """True if the cached reading's 5-hour window has already reset.
+
+    Once that happens the session figure describes a window that no longer
+    exists, so it must not be used -- this is exactly how a stale reading
+    misleads: it reports high usage for a window that has since emptied.
+    """
+    end = parse_timestamp(limits.get("session_resets_at"))
+    return end is not None and end <= datetime.now(timezone.utc)
+
+
+def evaluate(limits, source="live", age=None):
     session = limits.get("session_percent_used")
     weekly = limits.get("weekly_percent_used")
+
+    # A cached reading whose session window has expired tells us nothing about
+    # the current window. Drop the figure rather than report it confidently.
+    session_stale = source == "cached" and session_window_expired(limits)
+    if session_stale:
+        session = None
 
     fraction = elapsed_fraction(limits.get("weekly_resets_at"), WEEKLY_WINDOW)
     burn = None
@@ -142,10 +172,20 @@ def evaluate(limits):
         elif burn >= BURN_CAUTION and weekly >= BURN_CAUTION_FLOOR:
             escalate("CAUTION", pace)
 
+    # Being blind on the 5-hour window is itself a reason for restraint: never
+    # hand out a GO based on a reading that cannot see the current session.
+    if session_stale:
+        escalate(
+            "CAUTION",
+            f"stale cache ({age}m old): its 5-hour window already reset, "
+            "session figure unusable -- run `git pull` for a fresher reading",
+        )
+
     return {
         "verdict": verdict,
         "reasons": reasons,
         "session_percent_used": session,
+        "session_figure_stale": session_stale,
         "weekly_percent_used": weekly,
         "weekly_burn_rate": burn,
         "weekly_projected_at_reset": projected,
@@ -157,6 +197,8 @@ def evaluate(limits):
 def main():
     limits, source = load_limits()
 
+    age = cache_age_minutes(limits) if source == "cached" else None
+
     if limits.get("error"):
         result = {
             "verdict": "UNKNOWN",
@@ -164,15 +206,39 @@ def main():
             "source": source,
         }
         code = 3
+    elif source == "cached" and (age is None or age > CACHE_MAX_AGE_MINUTES):
+        # Too old to reason from. Say so plainly instead of guessing.
+        stale = "unknown age" if age is None else f"{age} minutes old"
+        result = {
+            "verdict": "UNKNOWN",
+            "reasons": [
+                f"no live quota access and the cached reading is {stale} "
+                f"(limit {CACHE_MAX_AGE_MINUTES}m) -- run `git pull` in the "
+                "claude-usage-status repo, or ask the user for a fresh reading"
+            ],
+            "source": source,
+            "data_age_minutes": age,
+        }
+        code = 3
     else:
-        result = evaluate(limits)
+        result = evaluate(limits, source=source, age=age)
         result["source"] = source
+        result["data_age_minutes"] = age
         code = {"GO": 0, "CAUTION": 1, "STOP": 2}[result["verdict"]]
 
     if "--brief" in sys.argv:
         bits = [result["verdict"]]
+        # Always show where the numbers came from: a reader must never have to
+        # guess whether this was live or a cached snapshot.
+        if result.get("source") == "cached":
+            age = result.get("data_age_minutes")
+            bits.append(f"CACHED{f' {age}m old' if age is not None else ''}")
+        elif result.get("source") == "live":
+            bits.append("live")
         if result.get("session_percent_used") is not None:
             bits.append(f"session {result['session_percent_used']}%")
+        elif result.get("session_figure_stale"):
+            bits.append("session unknown (stale)")
         if result.get("weekly_percent_used") is not None:
             bits.append(f"weekly {result['weekly_percent_used']}%")
         if result.get("weekly_burn_rate") is not None:

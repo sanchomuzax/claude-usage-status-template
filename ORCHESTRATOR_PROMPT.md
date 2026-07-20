@@ -18,7 +18,33 @@ másodperc alatt lefut:
 python3 ~/claude-usage-status/budget_check.py --brief
 ```
 
-Példa válasz: `CAUTION | session 76% | weekly 13% | burn 1.6x (…)`
+Példa válasz: `CAUTION | live | session 76% | weekly 13% | burn 1.6x (…)`
+
+### Mindig friss adatból dolgozz
+
+A parancs **kétféle forrásból** tud dolgozni, és a válaszban mindig kiírja, melyikből:
+
+- `live` — élő lekérdezés a szervertől. Ez a jó eset, nincs teendőd.
+- `CACHED ... m old` — nincs élő hozzáférés (jellemzően ha nem azon a gépen
+  futsz, ahol a bejelentkezés van), ezért a repóba commitolt pillanatképet
+  olvassa.
+
+**Ha `CACHED`-et látsz, előbb frissíts, és csak utána dönts:**
+
+```sh
+git -C ~/claude-usage-status pull --quiet
+python3 ~/claude-usage-status/budget_check.py --brief
+```
+
+A pillanatkép ötpercenként frissül a forrásgépen és felkerül a repóba, tehát egy
+`git pull` szinte mindig friss adatot hoz. Ha a `git pull` után is `CACHED`
+marad, az rendben van — a lényeg, hogy ne órákkal korábbi számból dolgozz.
+
+A parancs magától is véd: ha a pillanatkép 5 órás ablaka időközben lejárt, nem
+mondja meg a régi százalékot, hanem `session unknown (stale)` jelzést ad, és
+sosem enged GO-t ilyenkor. Ha a pillanatkép 90 percnél régebbi, a verdikt
+`UNKNOWN` lesz. **Ne értelmezd a régi számot friss adatként** — ha bizonytalan
+vagy, kérdezd meg a felhasználót, mit mutat nála a `/usage`.
 
 ### Mikor ellenőrizd
 
@@ -51,9 +77,10 @@ repó-átvizsgálást, mehet a szokásos több-ágenses munkafolyamat.
 4. Mondd meg a felhasználónak, mikor nullázódik a keret (a parancs kiírja), és
    állj meg. Ne indíts új subagentet, ne kezdj új fájlt.
 
-**UNKNOWN** — A kvóta nem volt lekérdezhető (pl. lejárt OAuth token). Dolgozz
-CAUTION szabályok szerint, és említsd meg a felhasználónak, hogy a keretfigyelés
-épp nem működik.
+**UNKNOWN** — A kvóta nem volt lekérdezhető, vagy a pillanatkép túl régi.
+Először próbáld a fenti `git pull`-t. Ha utána is UNKNOWN, dolgozz CAUTION
+szabályok szerint, és mondd meg a felhasználónak, hogy a keretfigyelés épp nem
+lát — ilyenkor ő tud pontos számot adni a `/usage` parancsból.
 
 ### Ha egy subagent hibával tér vissza — FONTOS
 
