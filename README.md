@@ -19,6 +19,38 @@ meaningfully.
    (`~/.claude/projects/**/*.jsonl`) and sums reported token counters for 7 days.
 3. **Publish** — writes `status.json` and commits + pushes it.
 
+The OAuth access token expires roughly daily. On a headless server nothing would
+renew it, so the monitor would go 401-blind after a day. To prevent that, when a
+quota call returns HTTP 401 the runner makes **one** minimal CLI call (renewing
+the token is a side effect of any invocation) and retries — costing tokens only
+when the token has actually expired, roughly once a day.
+
+## Spending strategy (`budget_check.py`)
+
+`budget_check.py` turns the quota into a `GO` / `CAUTION` / `STOP` verdict for
+orchestrators (see [ORCHESTRATOR_PROMPT.md](ORCHESTRATOR_PROMPT.md)). How
+aggressive it is depends on a profile:
+
+| profile | intent |
+|---|---|
+| `balanced` (default) | spend freely, stop before the window runs out |
+| `greedy` | use nearly the whole allowance before pulling back |
+| `conserve` | protect a reserve — warn and stop early (e.g. leave half the week) |
+
+```sh
+BUDGET_PROFILE=conserve python3 budget_check.py --brief
+```
+
+Any single threshold can be overridden without a profile, e.g. stop weekly work
+at 50%:
+
+```sh
+BUDGET_WEEKLY_STOP=50 python3 budget_check.py --brief
+```
+
+A non-default profile is shown in the output (e.g. `STOP | [conserve] | …`) so a
+conservative stop is never mistaken for a near-empty account.
+
 ## What you get
 
 | field | meaning |

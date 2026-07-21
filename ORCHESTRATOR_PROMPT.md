@@ -102,5 +102,13 @@ Hosszú futásnál a keret elfogyhat menet közben. Ez megengedett, sőt elvárt
 kapsz, ne kezdd el a következő fázist — zárd le tisztán a fentiek szerint. A
 felhasználó a nullázódás után folytatni tudja onnan, ahol abbahagytad.
 
+### Profil-címke a kimenetben
+
+Ha a válaszban látsz egy `[conserve]` vagy `[greedy]` címkét, az a felhasználó
+által beállított **költési politika**, nem az, hogy a fiók kimerülőben van. A
+`conserve` szándékosan korán mond STOP-ot (a felhasználó tartalékot akar hagyni),
+a `greedy` szándékosan sokáig enged. Címke nélkül a kiegyensúlyozott alapértelmezés
+fut. A verdiktet mindig kövesd — a címke csak azt magyarázza, miért ott a küszöb.
+
 Ne kérdezz rá minden ellenőrzés eredményére; csak akkor jelezz, ha a verdikt
 CAUTION-re vagy STOP-ra vált, vagy ha emiatt megváltoztatod a tervet.

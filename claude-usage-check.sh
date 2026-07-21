@@ -7,6 +7,9 @@
 # Designed to be run unattended from cron. It never exits non-zero on failure --
 # a failure IS the signal, and gets recorded in status.json.
 #
+# If the OAuth token has expired (HTTP 401), it renews it automatically with one
+# minimal CLI call and retries -- so a headless server stays alive unattended.
+#
 # Usage: claude-usage-check.sh [--probe]
 #   --probe  additionally send a live test call through the Claude Code CLI.
 #            Off by default: it costs ~17k tokens per run and the quota endpoint
@@ -35,9 +38,43 @@ log() {
 # Authoritative source: the same endpoint Claude Code's own /usage command uses,
 # authenticated with the OAuth token already on this machine. Costs no tokens.
 
-limits_json="$(python3 "${REPO_DIR}/fetch_limits.py" 2>>"${LOG_FILE}")"
-if [[ -z "${limits_json}" ]]; then
-  limits_json='{"error":"fetch_limits.py produced no output"}'
+fetch_quota() {
+  local out
+  out="$(python3 "${REPO_DIR}/fetch_limits.py" 2>>"${LOG_FILE}")"
+  [[ -n "${out}" ]] && printf '%s' "${out}" || printf '%s' '{"error":"fetch_limits.py produced no output"}'
+}
+
+# The OAuth access token expires roughly daily and nothing here renews it on its
+# own. On an interactive machine a stray `claude` command keeps it alive, but a
+# headless server running only this cron would silently go 401-blind after a day.
+# So: if the quota call fails auth, spend one tiny CLI call to refresh the token
+# (that is a side effect of any invocation) and retry once. This costs tokens
+# only when the token has actually expired -- about once a day, not every run.
+refresh_token() {
+  command -v claude >/dev/null 2>&1 || { log "token refresh skipped: claude CLI not found"; return 1; }
+  timeout "${PROBE_TIMEOUT_SECONDS}" claude \
+    -p "Reply with exactly: OK" \
+    --model "${PROBE_MODEL}" \
+    --output-format json \
+    --safe-mode \
+    --strict-mcp-config \
+    --mcp-config '{"mcpServers":{}}' \
+    --disable-slash-commands \
+    --no-session-persistence \
+    --allowed-tools "" \
+    --system-prompt "Token refresh. Reply with exactly: OK" >/dev/null 2>>"${LOG_FILE}"
+}
+
+limits_json="$(fetch_quota)"
+
+if printf '%s' "${limits_json}" | grep -q '"error".*HTTP 401'; then
+  log "quota call got 401; refreshing OAuth token via a minimal CLI call"
+  if refresh_token; then
+    limits_json="$(fetch_quota)"
+    printf '%s' "${limits_json}" | grep -q '"error"' \
+      && log "quota still failing after token refresh" \
+      || log "token refreshed, quota call recovered"
+  fi
 fi
 
 # --- 2. optional live probe -------------------------------------------------
