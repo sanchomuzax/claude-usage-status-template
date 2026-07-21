@@ -59,6 +59,16 @@ machine, point it at the local file. If it runs elsewhere (browser, another
 host), have it `git pull` this **private** repo first — a plain link will not be
 readable, but an authenticated clone/pull works.
 
+> **Keeping an agent current after you update this repo.** A `git pull` refreshes
+> the *code*: the agent runs `budget_check.py` fresh each time, so new script
+> behaviour applies automatically — you don't need to explain the internals. But
+> an agent that already loaded `ORCHESTRATOR_PROMPT.md` into its context earlier
+> keeps its *old* understanding; pulling the file to disk does not change what the
+> agent already read. So after the prompt or scripts change, tell the agent to
+> **`git pull` and then re-read `ORCHESTRATOR_PROMPT.md`** — otherwise it will
+> interpret the new output (e.g. `CACHED`, `UNKNOWN`, a `[conserve]` tag) with the
+> old rules.
+
 **6. (Optional) pick a spending strategy** — see *Spending strategy* below to
 make agents burn the whole allowance or keep a reserve for you.
 
