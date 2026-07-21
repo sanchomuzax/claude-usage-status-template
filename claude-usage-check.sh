@@ -65,15 +65,38 @@ refresh_token() {
     --system-prompt "Token refresh. Reply with exactly: OK" >/dev/null 2>>"${LOG_FILE}"
 }
 
+# If auth is permanently broken (logged out, refresh token itself dead), a 401
+# would otherwise trigger a refresh attempt on every single run -- 288 pointless
+# CLI spawns a day. A cooldown caps attempts to one per hour: retry occasionally
+# in case it was transient, but never hammer a dead login.
+REFRESH_STATE="${REPO_DIR}/.refresh_state"
+REFRESH_COOLDOWN_SECONDS=3600
+
+refresh_in_cooldown() {
+  [[ -f "${REFRESH_STATE}" ]] || return 1
+  local last now
+  last="$(cat "${REFRESH_STATE}" 2>/dev/null)"
+  [[ "${last}" =~ ^[0-9]+$ ]] || return 1
+  now="$(date +%s)"
+  (( now - last < REFRESH_COOLDOWN_SECONDS ))
+}
+
 limits_json="$(fetch_quota)"
 
 if printf '%s' "${limits_json}" | grep -q '"error".*HTTP 401'; then
-  log "quota call got 401; refreshing OAuth token via a minimal CLI call"
-  if refresh_token; then
-    limits_json="$(fetch_quota)"
-    printf '%s' "${limits_json}" | grep -q '"error"' \
-      && log "quota still failing after token refresh" \
-      || log "token refreshed, quota call recovered"
+  if refresh_in_cooldown; then
+    log "quota call got 401 but a refresh was tried within the last hour; skipping (auth may be broken -- check that Claude Code is logged in)"
+  else
+    log "quota call got 401; refreshing OAuth token via a minimal CLI call"
+    date +%s >"${REFRESH_STATE}"
+    if refresh_token; then
+      limits_json="$(fetch_quota)"
+      if printf '%s' "${limits_json}" | grep -q '"error"'; then
+        log "quota still failing after token refresh (auth likely broken)"
+      else
+        log "token refreshed, quota call recovered"
+      fi
+    fi
   fi
 fi
 

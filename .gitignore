@@ -2,3 +2,4 @@ run.log
 run.log.tmp
 __pycache__/
 *.pyc
+.refresh_state

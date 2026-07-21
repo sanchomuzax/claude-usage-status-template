@@ -9,6 +9,62 @@ Automated monitor for Claude subscription quota. A cron job runs every 5 minutes
 refreshes [`status.json`](status.json), and publishes it when the reading changes
 meaningfully.
 
+## Quick start
+
+You need **one always-on machine** (a home server, a Raspberry Pi, a cheap VPS —
+anything that stays powered) with **Claude Code installed and logged in**. Verify
+with `claude -p "hi"`; if that answers, you are ready.
+
+**1. Make your own copy — and keep it private.**
+On GitHub click **“Use this template” → Create a new repository**, name it
+whatever you like, and set it to **Private**. This is important: the repo records
+your usage over time, which is your data. Then clone it onto the always-on
+machine:
+
+```sh
+git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git ~/claude-usage-status
+cd ~/claude-usage-status
+```
+
+**2. Drop the template-only files** (only present if you started from the
+template — skip if they are not there):
+
+```sh
+rm -f sync-template.sh template_guard.py test_template_guard.py
+rm -rf hooks
+```
+
+**3. Run it once by hand** and check it collected real numbers:
+
+```sh
+./claude-usage-check.sh
+cat status.json      # session_percent_used etc. should be filled in, quota_status: "ok"
+```
+
+If `quota_status` is `error`, make sure Claude Code is logged in on this machine.
+
+**4. Schedule it every 5 minutes** with cron (`crontab -e`), using the real path:
+
+```
+*/5 * * * * ~/claude-usage-status/claude-usage-check.sh >/dev/null 2>&1
+```
+
+Cron restarts with the machine, so this survives reboots. Watch `status.json` and
+`history/` fill up over the next hour.
+
+**5. Let your agents use it.** Tell your Claude Code agent (or put it in a project
+`CLAUDE.md`) to read and follow the rules in
+[ORCHESTRATOR_PROMPT.md](ORCHESTRATOR_PROMPT.md). If the agent runs on the same
+machine, point it at the local file. If it runs elsewhere (browser, another
+host), have it `git pull` this **private** repo first — a plain link will not be
+readable, but an authenticated clone/pull works.
+
+**6. (Optional) pick a spending strategy** — see *Spending strategy* below to
+make agents burn the whole allowance or keep a reserve for you.
+
+That's it. From here the sections below explain what each field means and how the
+pieces work.
+
 ## What it does
 
 1. **Quota** — queries Anthropic's OAuth usage endpoint (`/api/oauth/usage`), the
@@ -23,7 +79,10 @@ The OAuth access token expires roughly daily. On a headless server nothing would
 renew it, so the monitor would go 401-blind after a day. To prevent that, when a
 quota call returns HTTP 401 the runner makes **one** minimal CLI call (renewing
 the token is a side effect of any invocation) and retries — costing tokens only
-when the token has actually expired, roughly once a day.
+when the token has actually expired, roughly once a day. If auth is *permanently*
+broken (you logged out, the refresh token itself died), a one-hour cooldown stops
+it from retrying on every run; it tries again at most once an hour and logs that
+the login likely needs fixing.
 
 ## Spending strategy (`budget_check.py`)
 
