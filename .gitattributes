@@ -1,0 +1,6 @@
+# Keep shell and Python scripts LF-only, even on Windows clones where
+# core.autocrlf=true would otherwise rewrite them to CRLF. Bash chokes on
+# CRLF ("python3^M: command not found", "set: -\r: invalid option"), so this
+# is the first thing that breaks on Windows without it. No-op on Unix.
+*.sh text eol=lf
+*.py text eol=lf
