@@ -26,8 +26,10 @@ git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git ~/claude-usage-status
 cd ~/claude-usage-status
 ```
 
-**2. Drop the template-only files** (only present if you started from the
-template — skip if they are not there):
+**2. Drop the maintainer's mirroring files, if present.** The shareable template
+does **not** ship them — they live in the maintained source repo (see
+[Template repo](#template-repo)). You only have them if you are the maintainer
+working from the private copy; a clone of the template can skip this step:
 
 ```sh
 rm -f sync-template.sh template_guard.py test_template_guard.py
@@ -295,25 +297,19 @@ won't crash on a cp1250/cp1252 console.
 
 ## Template repo
 
-Code is mirrored to a shareable template repo with dummy data by
-`sync-template.sh`. A `post-commit` hook runs it automatically, but only when a
-code or doc file changes -- the cron job's constant `status.json` commits do not
-trigger a sync.
+This repository is the **shareable template**: the code, mirrored with dummy
+data from a private working copy so it never carries real usage numbers.
 
-Before anything is committed to the public template, `template_guard.py` scans
-the built output and **aborts the sync** if it finds credentials, a username,
-an absolute home path, an email address, real measurements in place of the dummy
-data, or any file not on its allowlist. Run its test suite with:
-
-```sh
-python3 test_template_guard.py
-```
-
-Git hooks are not versioned, so after cloning, install it once:
-
-```sh
-cp hooks/post-commit .git/hooks/post-commit && chmod +x .git/hooks/post-commit
-```
+The mirroring itself is handled by tooling in the **maintained source repo**, not
+shipped here: a sync script copies the code and swaps real measurements for
+clearly-labelled dummy data, a guard aborts the publish if it ever spots
+credentials, a username, an absolute home path, an email address, real data in
+place of the dummy data, or any file not on its allowlist, and a `post-commit`
+hook triggers the sync only when code or docs change (the cron job's constant
+`status.json` commits do not). That guard has its own test suite on the source
+side. Those files live in the private source repo by design, so what you see
+here is only ever reviewed, dummy-data output — open issues and pull requests
+against this template and the maintainer folds them back in.
 
 ## Privacy
 
