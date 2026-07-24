@@ -199,6 +199,10 @@ here.
 
 ## Dashboard
 
+![Rendered dashboard preview — KPI tiles, session/weekly time series, hourly pattern, status mix, token trend, and saturation episodes](docs/dashboard-preview.png)
+
+*Preview of [`sample/2026-05.html`](sample/2026-05.html) — two weeks of synthetic demo data, not real usage.*
+
 `build_dashboard.py` turns any monthly history file into a single, self-contained
 HTML dashboard — KPI tiles, a session/weekly time series with the warning /
 critical / exhausted thresholds, the hourly usage pattern, the status mix, the
