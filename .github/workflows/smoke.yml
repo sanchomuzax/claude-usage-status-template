@@ -1,0 +1,28 @@
+name: smoke
+
+# A minimal, dependency-free smoke test: the dashboard generator is pure Python
+# standard library, so this just proves it still builds the shipped sample into
+# a non-empty HTML report on a clean machine.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-sample-dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Build the sample dashboard
+        run: python3 build_dashboard.py sample/2026-05.jsonl
+
+      - name: Assert the report was produced
+        run: |
+          test -s sample/2026-05.html
+          echo "built sample/2026-05.html ($(wc -c < sample/2026-05.html) bytes)"
