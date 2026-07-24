@@ -34,6 +34,27 @@ log() {
   printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >>"${LOG_FILE}"
 }
 
+# Rebuild the HTML dashboard for the current (still-open) month from its
+# history file. Runs only on a meaningful change (mirrors the commit decision),
+# so it does not rewrite a ~100 KB file 288 times a day. Pure-stdlib and
+# LLM-free (~45 ms). The output history/<month>.html is committed and pushed
+# by the publish step below, so the report on GitHub tracks the latest reading.
+regenerate_dashboard() {
+  local month history_file builder
+  builder="${REPO_DIR}/build_dashboard.py"
+  [[ -f "${builder}" ]] || return 0
+  month="$(date -u +%Y-%m)"
+  history_file="${REPO_DIR}/history/${month}.jsonl"
+  [[ -f "${history_file}" ]] || return 0
+  # The report lands next to its data (history/<month>.html), not the repo root.
+  if python3 "${builder}" "${history_file}" \
+       -o "${REPO_DIR}/history/${month}.html" >>"${LOG_FILE}" 2>&1; then
+    log "dashboard regenerated (history/${month}.html)"
+  else
+    log "dashboard regeneration failed (see above)"
+  fi
+}
+
 # --- 1. real quota ----------------------------------------------------------
 # Authoritative source: the same endpoint Claude Code's own /usage command uses,
 # authenticated with the OAuth token already on this machine. Costs no tokens.
@@ -360,6 +381,13 @@ if [[ "${decision_line}" != COMMIT* ]]; then
   log "local update only (${decision_line})"
 else
   reason="${decision_line#COMMIT }"
+
+  # A meaningful reading landed -> rebuild the dashboard for the current month
+  # and publish it alongside status.json / history so the report on GitHub
+  # always reflects the latest reading.
+  regenerate_dashboard
+  month_dashboard="history/$(date -u +%Y-%m).html"
+
   summary="$(python3 -c "
 import json
 d = json.load(open('status.json'))
@@ -367,6 +395,7 @@ print(f\"{d['quota_status']} session={d.get('session_percent_used')}% weekly={d.
 " 2>/dev/null || echo "update")"
 
   git add status.json history 2>/dev/null
+  [[ -f "${month_dashboard}" ]] && git add "${month_dashboard}" 2>/dev/null
   if [[ -z "$(git diff --cached --name-only)" ]]; then
     log "nothing staged despite decision: ${reason}"
   elif git commit -q -m "chore: usage status $(date -u +%Y-%m-%dT%H:%MZ) (${summary})" -m "${reason}"; then

@@ -3,3 +3,7 @@ run.log.tmp
 __pycache__/
 *.pyc
 .refresh_state
+
+# Local, one-off written analysis (not tracked). The generated HTML
+# dashboards (dashboard-*.html) ARE tracked -- they are the published report.
+elemzes-*.md

@@ -163,6 +163,10 @@ to verify independently that calls actually succeed. When it is off,
 | `estimate_tokens.py` | 7-day token estimator |
 | `status.json` | latest result (overwritten each run) |
 | `history/YYYY-MM.jsonl` | one compact line per run, for trends |
+| `history/YYYY-MM.html` | the published report for that month; rebuilt, committed & pushed each meaningful reading |
+| `build_dashboard.py` | turns a history file into an offline HTML dashboard |
+| `sample/2026-05.jsonl` | synthetic demo data to try the dashboard right away |
+| `sample/2026-05.html` | a rendered demo report, committed so it's visible without running anything |
 | `run.log` | local run log, git-ignored |
 
 ## Schedule and publishing
@@ -192,6 +196,52 @@ usage from any machine, the phone app, or claude.ai is included. The **token
 estimate is machine-local** — it only sees sessions logged on this host. Sessions
 driven remotely (e.g. from the web UI) still count as local when the agent runs
 here.
+
+## Dashboard
+
+`build_dashboard.py` turns any monthly history file into a single, self-contained
+HTML dashboard — KPI tiles, a session/weekly time series with the warning /
+critical / exhausted thresholds, the hourly usage pattern, the status mix, the
+token trend, and auto-detected saturation and auth-error episodes. The page has an
+**EN/HU language toggle** (English by default) and shows all times in the **local
+timezone of the machine that builds it** (via `$TZ`), so the report reads in your
+own local time — the stored history stays UTC.
+
+```sh
+python3 build_dashboard.py history/2026-07.jsonl
+# -> history/2026-07.html  (open it in any browser)
+```
+
+It is **offline and LLM-free**: pure Python standard library, no network calls.
+Everything is computed from the jsonl and embedded into the page; the charts draw
+client-side with vanilla JavaScript. A full month (~8,900 lines) builds in well
+under a second. By default the report is written **next to its data**
+(`history/2026-07.jsonl` → `history/2026-07.html`), so months stay together and
+the repo root stays clean.
+
+The generated `history/<month>.html` **is committed and published** — it is the
+report, part of the repo, not a throwaway. GitHub does not render HTML inline, so
+to read it open the raw file in a browser (Raw → save, or `git pull` and open it
+locally). A committed sample is included so you can see one immediately without
+cloning-and-running:
+
+- **[`sample/2026-05.html`](sample/2026-05.html)** — a rendered demo report built
+  from `sample/2026-05.jsonl` (two weeks of synthetic readings, not real usage).
+  Rebuild it with:
+
+  ```sh
+  python3 build_dashboard.py sample/2026-05.jsonl   # -> sample/2026-05.html
+  ```
+
+You can delete the `sample/` directory once you've seen it; `make_sample.py` in
+there regenerates the demo data deterministically if you ever want it back.
+
+**Live view.** `claude-usage-check.sh` rebuilds `history/<current-month>.html`
+whenever a reading is worth committing (the same "something changed" signal used
+for git — so it does not rewrite the file on every 5-minute run) and **commits and
+pushes it alongside `status.json`**. The report on GitHub therefore tracks the
+latest meaningful reading on its own. The rebuild is gated to the still-open
+month, so it rolls over to a new file on the 1st with no configuration.
 
 ## Template repo
 
