@@ -279,6 +279,16 @@ def render(payload: dict) -> str:
 
 
 def main(argv=None) -> int:
+    # Windows consoles (and redirected streams) default to the locale codepage
+    # (cp1250/cp1252), where the "→" in the success line raises UnicodeEncodeError
+    # and exits 1 -- even though the HTML was already written. Force UTF-8 so the
+    # wrapper never sees a false "regeneration failed". No-op on Unix.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
+
     ap = argparse.ArgumentParser(description="Build a Claude-quota telemetry dashboard from a jsonl history file.")
     ap.add_argument("jsonl", type=Path, help="path to history/<YYYY-MM>.jsonl")
     ap.add_argument("-o", "--output", type=Path, default=None,

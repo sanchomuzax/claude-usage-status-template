@@ -243,6 +243,52 @@ pushes it alongside `status.json`**. The report on GitHub therefore tracks the
 latest meaningful reading on its own. The rebuild is gated to the still-open
 month, so it rolls over to a new file on the 1st with no configuration.
 
+## Running on Windows
+
+The core (`budget_check.py`, `fetch_limits.py`, `estimate_tokens.py`) runs
+unmodified on Windows 11 with **Git Bash + Task Scheduler**. A few
+platform-specific gotchas (thanks to a user who ported it):
+
+- **Line endings.** The repo ships a `.gitattributes` that pins `*.sh`/`*.py`
+  to LF, so a default clone (`core.autocrlf=true`) can't rewrite the scripts to
+  CRLF — which otherwise makes bash fail with `python3^M: command not found`. If
+  you cloned *before* this file existed, re-normalise once:
+  `git add --renormalize . && git checkout .`.
+
+- **`python3` doesn't exist.** Windows ships `py` (or `python`), not `python3`.
+  Either create a venv and point the scripts at it, or alias it. The venv
+  interpreter lives at `.venv\Scripts\python.exe` (not `.venv/bin/python`):
+
+  ```sh
+  py -m venv .venv
+  PY="$(pwd)/.venv/Scripts/python.exe"   # use "$PY" in place of python3 for manual runs
+  ```
+
+- **Running the script by hand.** Typing `bash` on Windows often launches WSL,
+  not Git Bash. Use the full path:
+
+  ```powershell
+  & "C:\Program Files\Git\bin\bash.exe" -lc "'/c/Users/YOU/claude-usage-status/claude-usage-check.sh'"
+  ```
+
+- **Scheduling (cron replacement).** Use Task Scheduler. To avoid a black
+  console window flashing every 5 minutes, launch a tiny hidden VBS via
+  `wscript.exe` instead of calling `bash.exe` directly. Save `run-hidden.vbs`:
+
+  ```vbscript
+  Set sh = CreateObject("WScript.Shell")
+  cmd = """C:\Program Files\Git\bin\bash.exe"" -lc ""'/c/Users/YOU/claude-usage-status/claude-usage-check.sh'"""
+  sh.Run cmd, 0, False
+  ```
+
+  Then a Task Scheduler task, every 5 minutes: program `wscript.exe`, argument
+  the full path to `run-hidden.vbs`. If your machine's clock is UTC but you want
+  local time in the report, set `TZ=Europe/Budapest` (or your zone) in the task's
+  environment.
+
+The Python entry points already force UTF-8 output, so the `→` in the log line
+won't crash on a cp1250/cp1252 console.
+
 ## Template repo
 
 Code is mirrored to a shareable template repo with dummy data by

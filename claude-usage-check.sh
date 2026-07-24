@@ -28,7 +28,9 @@ RUN_PROBE=0
 [[ "${1:-}" == "--probe" ]] && RUN_PROBE=1
 
 # cron gives a minimal PATH; make sure the usual install locations are visible.
-export PATH="${HOME}/.local/bin:${HOME}/bin:/usr/local/bin:/usr/bin:/bin"
+# Append rather than replace: on Windows/Git Bash the existing PATH is where
+# git/python live, and dropping it would make scheduled runs fail to find them.
+export PATH="${HOME}/.local/bin:${HOME}/bin:/usr/local/bin:/usr/bin:/bin:${PATH}"
 
 log() {
   printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >>"${LOG_FILE}"
